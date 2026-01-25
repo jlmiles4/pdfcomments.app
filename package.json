@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "postinstall": "cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/",
-    "deploy:s3": "aws s3 sync out/ s3://$S3_BUCKET --delete"
+    "deploy:s3": "bash -c 'set -a && source .env && aws s3 sync out/ s3://$S3_BUCKET --delete'",
+    "invalidate": "bash -c 'set -a && source .env && aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_DISTRIBUTION_ID --paths \"/*\"'",
+    "send-it": "pnpm build && pnpm deploy:s3 && pnpm invalidate"
   },
   "dependencies": {
     "next": "^14.2.0",
