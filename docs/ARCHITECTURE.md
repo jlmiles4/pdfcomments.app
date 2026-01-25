@@ -1,8 +1,6 @@
-# PDF Comments
+# Architecture
 
-**Website:** [pdfcomments.app](https://pdfcomments.app)
-
-A static Next.js app that extracts annotations from PDFs and outputs structured Markdown or plain text. Drop a PDF, see all the annotations (highlights, strikethroughs, underlines, sticky notes), and export them.
+Internal documentation for [pdfcomments.app](https://pdfcomments.app).
 
 ## Tech Stack
 
