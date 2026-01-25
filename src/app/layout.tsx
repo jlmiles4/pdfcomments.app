@@ -17,11 +17,20 @@ export const metadata: Metadata = {
     siteName: 'PDF Comment Extractor',
     title: 'PDF Comment Extractor - Extract Editorial Feedback & Design Comments',
     description: 'Extract highlights, sticky notes, and editorial marks from PDFs into structured Markdown or plain text. 100% private, client-side processing.',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'PDF Comment Extractor',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'PDF Comment Extractor',
     description: 'Extract highlights, sticky notes, and editorial marks from PDFs into structured Markdown or plain text.',
+    images: ['/og-image.png'],
   },
   robots: {
     index: true,
@@ -35,8 +44,15 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: '/favicon.svg',
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+    ],
+    apple: '/apple-touch-icon.png',
   },
+  manifest: '/site.webmanifest',
 };
 
 export default function RootLayout({

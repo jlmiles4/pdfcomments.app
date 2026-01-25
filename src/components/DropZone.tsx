@@ -136,9 +136,9 @@ export function DropZone({ onFileSelect, compact = false }: DropZoneProps) {
                 <p className="mt-1 text-sm" style={{ color: 'var(--color-muted)' }}>
                   Works with annotations from Adobe, Preview, Foxit, and more
                 </p>
-                <p className="mt-3 text-xs flex items-center justify-center gap-1.5" style={{ color: 'var(--color-muted)' }}>
-                  <Shield className="w-3.5 h-3.5" />
-                  100% local processing. Your files never leave your browser.
+                <p className="mt-3 text-xs flex items-start justify-center gap-1.5" style={{ color: 'var(--color-muted)' }}>
+                  <Shield className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                  <span className="text-center">100% local processing. Your files never leave your browser.</span>
                 </p>
               </>
             )}
