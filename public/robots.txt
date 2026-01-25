@@ -1,0 +1,6 @@
+# robots.txt for PDF Comments
+
+User-agent: *
+Allow: /
+
+Sitemap: https://pdfcomments.app/sitemap.xml

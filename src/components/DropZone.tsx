@@ -1,0 +1,190 @@
+'use client';
+
+import { useCallback, useState, useRef } from 'react';
+import { Upload, FileText, AlertCircle, Shield, AlertTriangle } from 'lucide-react';
+
+/** File size threshold (50MB) above which we show a warning */
+const LARGE_FILE_THRESHOLD = 50 * 1024 * 1024;
+
+interface DropZoneProps {
+  onFileSelect: (file: File) => void;
+  compact?: boolean;
+}
+
+export function DropZone({ onFileSelect, compact = false }: DropZoneProps) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [largeFileWarning, setLargeFileWarning] = useState<File | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const validateAndSelect = useCallback(
+    (file: File, bypassWarning = false) => {
+      setError(null);
+      setLargeFileWarning(null);
+
+      if (!file.type && !file.name.toLowerCase().endsWith('.pdf')) {
+        setError('Please select a PDF file');
+        return;
+      }
+
+      if (file.type && file.type !== 'application/pdf') {
+        setError('Please select a PDF file');
+        return;
+      }
+
+      // Check for large files and show warning
+      if (!bypassWarning && file.size > LARGE_FILE_THRESHOLD) {
+        setLargeFileWarning(file);
+        return;
+      }
+
+      onFileSelect(file);
+    },
+    [onFileSelect]
+  );
+
+  const handleProceedWithLargeFile = useCallback(() => {
+    if (largeFileWarning) {
+      validateAndSelect(largeFileWarning, true);
+    }
+  }, [largeFileWarning, validateAndSelect]);
+
+  const handleCancelLargeFile = useCallback(() => {
+    setLargeFileWarning(null);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        validateAndSelect(file);
+      }
+    },
+    [validateAndSelect]
+  );
+
+  const handleClick = useCallback(() => {
+    inputRef.current?.click();
+  }, []);
+
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        validateAndSelect(file);
+      }
+    },
+    [validateAndSelect]
+  );
+
+  return (
+    <div className="w-full">
+      <div
+        onClick={handleClick}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`dropzone ${isDragging ? 'dragging' : ''} ${compact ? 'p-6' : 'p-10'}`}
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".pdf,application/pdf"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+
+        <div className={`flex ${compact ? 'flex-row items-center gap-4' : 'flex-col items-center gap-4 text-center'}`}>
+          <div
+            className={`
+              ${compact ? 'p-3' : 'p-4'} rounded-xl transition-colors duration-200
+              ${isDragging
+                ? 'bg-blue-100 dark:bg-blue-900/40'
+                : 'bg-stone-100 dark:bg-stone-800'
+              }
+            `}
+          >
+            {isDragging ? (
+              <FileText className={`${compact ? 'w-6 h-6' : 'w-8 h-8'} text-blue-600 dark:text-blue-400`} />
+            ) : (
+              <Upload className={`${compact ? 'w-6 h-6' : 'w-8 h-8'} text-stone-500 dark:text-stone-400`} />
+            )}
+          </div>
+
+          <div className={compact ? '' : ''}>
+            <p className={`${compact ? 'text-base' : 'text-lg'} font-semibold`} style={{ color: 'var(--color-ink)' }}>
+              {isDragging ? 'Drop your PDF here' : 'Drop PDF or click to browse'}
+            </p>
+            {!compact && (
+              <>
+                <p className="mt-1 text-sm" style={{ color: 'var(--color-muted)' }}>
+                  Works with annotations from Adobe, Preview, Foxit, and more
+                </p>
+                <p className="mt-3 text-xs flex items-center justify-center gap-1.5" style={{ color: 'var(--color-muted)' }}>
+                  <Shield className="w-3.5 h-3.5" />
+                  100% local processing. Your files never leave your browser.
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {error && (
+        <div className="mt-3 flex items-center gap-2 text-red-600 dark:text-red-400 text-sm">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {largeFileWarning && (
+        <div
+          className="mt-4 p-4 rounded-lg"
+          style={{ backgroundColor: 'var(--color-accent-soft)', border: '1px solid var(--color-accent)' }}
+        >
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--color-accent)' }} />
+            <div className="flex-1">
+              <p className="font-medium" style={{ color: 'var(--color-ink)' }}>
+                Large file detected
+              </p>
+              <p className="text-sm mt-1" style={{ color: 'var(--color-muted)' }}>
+                This file is {Math.round(largeFileWarning.size / (1024 * 1024))}MB. Processing may take additional time due to the file size.
+              </p>
+              <div className="flex gap-3 mt-3">
+                <button
+                  onClick={handleProceedWithLargeFile}
+                  className="btn-primary text-sm py-2 px-4"
+                >
+                  Continue anyway
+                </button>
+                <button
+                  onClick={handleCancelLargeFile}
+                  className="btn-secondary text-sm py-2 px-4"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
