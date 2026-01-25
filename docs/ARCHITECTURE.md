@@ -152,4 +152,4 @@ pnpm deploy:s3
 
 ## License
 
-© 2026 PDF Comments
+MIT - see [LICENSE](../LICENSE)
