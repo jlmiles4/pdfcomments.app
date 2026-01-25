@@ -96,6 +96,16 @@ export default function AboutPage() {
             >
               Landon Miles
             </a>
+            <span className="mx-2">·</span>
+            <a
+              href="https://github.com/jlmiles4/pdfcomments.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:underline"
+              style={{ color: 'var(--color-accent)' }}
+            >
+              View source on GitHub
+            </a>
           </p>
         </div>
       </main>
