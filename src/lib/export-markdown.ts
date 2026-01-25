@@ -200,16 +200,17 @@ export function toMarkdownChecklist(annotations: GroupedAnnotation[]): string {
     lines.push('');
 
     for (const annotation of pageAnnotations) {
-      const position = describePosition(annotation.rect);
       const textPreview = annotation.originalText
         ? ` "${truncate(annotation.originalText, 50)}"`
         : '';
       const comment = annotation.comment || annotation.linkedNotes[0] || '';
-      const commentPreview = comment ? ` — ${truncate(comment, 60)}` : '';
 
       lines.push(
-        `- [ ] **[${annotation.type}]** (${position})${textPreview}${commentPreview}`
+        `- [ ] **[${annotation.type}]**${textPreview}`
       );
+      if (comment) {
+        lines.push(`  - Note: ${truncate(comment, 60)}`);
+      }
     }
 
     lines.push('');
@@ -291,6 +292,74 @@ export function toMarkdownStructured(annotations: GroupedAnnotation[]): string {
   }
 
   return lines.join('\n');
+}
+
+/**
+ * Converts annotations to HTML checklist format for Google Docs compatibility.
+ *
+ * Generates semantic HTML that renders correctly when pasted into:
+ * - Google Docs (formatted bullet list with bold type badges)
+ * - Microsoft Word
+ * - Email clients
+ *
+ * @param annotations - Array of grouped annotations
+ * @returns HTML string with formatted list
+ */
+export function toHtmlChecklist(annotations: GroupedAnnotation[]): string {
+  if (annotations.length === 0) {
+    return '<p>No annotations found.</p>';
+  }
+
+  const lines: string[] = [];
+
+  // Group by page
+  const byPage: Record<number, GroupedAnnotation[]> = {};
+  for (const annotation of annotations) {
+    if (!byPage[annotation.page]) {
+      byPage[annotation.page] = [];
+    }
+    byPage[annotation.page].push(annotation);
+  }
+
+  const pages = Object.keys(byPage).map(Number).sort((a, b) => a - b);
+
+  for (const page of pages) {
+    const pageAnnotations = byPage[page];
+    lines.push(`<h2>Page ${page}</h2>`);
+    lines.push('<ul>');
+
+    for (const annotation of pageAnnotations) {
+      const textPreview = annotation.originalText
+        ? ` "${escapeHtml(truncate(annotation.originalText, 50))}"`
+        : '';
+      const comment = annotation.comment || annotation.linkedNotes[0] || '';
+
+      if (comment) {
+        lines.push(
+          `<li><strong>[${annotation.type}]</strong>${textPreview}<ul><li>Note: ${escapeHtml(truncate(comment, 60))}</li></ul></li>`
+        );
+      } else {
+        lines.push(
+          `<li><strong>[${annotation.type}]</strong>${textPreview}</li>`
+        );
+      }
+    }
+
+    lines.push('</ul>');
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Escapes HTML special characters.
+ */
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 /**

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import {
   FileText,
   RefreshCw,
@@ -20,7 +20,7 @@ import { AnnotationList } from '@/components/AnnotationList';
 import { loadPdf } from '@/lib/pdf-loader';
 import { extractAnnotations } from '@/lib/extract-annotations';
 import { groupAnnotations } from '@/lib/group-annotations';
-import { toMarkdownTable, toPlainText } from '@/lib/export-markdown';
+import { toMarkdownTable, toMarkdownChecklist, toHtmlChecklist } from '@/lib/export-markdown';
 import type { GroupedAnnotation } from '@/types';
 
 type AppState = 'upload' | 'processing' | 'results' | 'error';
@@ -30,11 +30,9 @@ export default function Home() {
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [annotations, setAnnotations] = useState<GroupedAnnotation[]>([]);
   const [markdown, setMarkdown] = useState('');
-  const [plainText, setPlainText] = useState('');
   const [fileName, setFileName] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState<'markdown' | 'text' | null>(null);
-  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  const [copied, setCopied] = useState<'markdown' | 'checklist' | null>(null);
 
   const handleFileSelect = useCallback(async (file: File) => {
     setState('processing');
@@ -52,11 +50,9 @@ export default function Home() {
 
       const grouped = groupAnnotations(extracted);
       const md = toMarkdownTable(grouped);
-      const txt = toPlainText(grouped);
 
       setAnnotations(grouped);
       setMarkdown(md);
-      setPlainText(txt);
       setState('results');
     } catch (err) {
       console.error('Failed to process PDF:', err);
@@ -69,20 +65,36 @@ export default function Home() {
     setState('upload');
     setAnnotations([]);
     setMarkdown('');
-    setPlainText('');
     setFileName('');
     setError(null);
     setCopied(null);
   }, []);
 
-  const handleCopy = async (type: 'markdown' | 'text') => {
-    const content = type === 'markdown' ? markdown : plainText;
+  const handleCopyChecklist = async () => {
     try {
-      await navigator.clipboard.writeText(content);
-      setCopied(type);
+      const html = toHtmlChecklist(annotations);
+      const gfmChecklist = toMarkdownChecklist(annotations);
+
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/html': new Blob([html], { type: 'text/html' }),
+          'text/plain': new Blob([gfmChecklist], { type: 'text/plain' }),
+        }),
+      ]);
+      setCopied('checklist');
       setTimeout(() => setCopied(null), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err);
+      console.error('Failed to copy checklist:', err);
+    }
+  };
+
+  const handleCopyMarkdown = async () => {
+    try {
+      await navigator.clipboard.writeText(markdown);
+      setCopied('markdown');
+      setTimeout(() => setCopied(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy markdown:', err);
     }
   };
 
@@ -255,51 +267,31 @@ export default function Home() {
 
               {/* Export sidebar - sticky on desktop */}
               <aside className="space-y-4 lg:sticky lg:top-6">
-                {/* Copy plain text box */}
+                {/* Export options */}
                 <div className="card p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-medium text-sm" style={{ color: 'var(--color-ink)' }}>
-                      Plain text
-                    </h3>
+                  <h3 className="font-medium text-sm mb-3" style={{ color: 'var(--color-ink)' }}>
+                    Export
+                  </h3>
+                  <div className="space-y-2">
                     <button
-                      onClick={() => handleCopy('text')}
-                      className="btn-secondary text-xs py-1.5 px-3"
+                      onClick={handleCopyChecklist}
+                      disabled={annotations.length === 0}
+                      className="btn-primary w-full justify-center"
                     >
-                      {copied === 'text' ? (
+                      {copied === 'checklist' ? (
                         <>
-                          <Check className="w-3.5 h-3.5" />
+                          <Check className="w-4 h-4" />
                           Copied!
                         </>
                       ) : (
                         <>
-                          <Copy className="w-3.5 h-3.5" />
-                          Copy
+                          <Copy className="w-4 h-4" />
+                          Copy Checklist
                         </>
                       )}
                     </button>
-                  </div>
-                  <textarea
-                    ref={textAreaRef}
-                    readOnly
-                    value={plainText}
-                    className="w-full h-36 p-3 rounded text-xs font-mono resize-none focus:outline-none"
-                    style={{
-                      backgroundColor: 'var(--color-paper-warm)',
-                      color: 'var(--color-ink-light)',
-                      border: '1px solid var(--color-border)',
-                    }}
-                    onClick={(e) => (e.target as HTMLTextAreaElement).select()}
-                  />
-                </div>
-
-                {/* Markdown export */}
-                <div className="card p-4">
-                  <h3 className="font-medium text-sm mb-3" style={{ color: 'var(--color-ink)' }}>
-                    Markdown export
-                  </h3>
-                  <div className="space-y-2">
                     <button
-                      onClick={() => handleCopy('markdown')}
+                      onClick={handleCopyMarkdown}
                       disabled={annotations.length === 0}
                       className="btn-secondary w-full justify-center"
                     >
@@ -318,7 +310,7 @@ export default function Home() {
                     <button
                       onClick={handleDownload}
                       disabled={annotations.length === 0}
-                      className="btn-primary w-full justify-center"
+                      className="btn-secondary w-full justify-center"
                     >
                       <FileDown className="w-4 h-4" />
                       Download .md
@@ -326,12 +318,17 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Tip */}
+                {/* Tips */}
                 <div
-                  className="p-3 rounded text-sm"
+                  className="p-3 rounded text-sm space-y-2"
                   style={{ backgroundColor: 'var(--color-paper-warm)', color: 'var(--color-muted)' }}
                 >
-                  <strong style={{ color: 'var(--color-ink)' }}>Tip:</strong> Markdown includes page locations for AI agents.
+                  <p>
+                    <strong style={{ color: 'var(--color-ink)' }}>Checklist</strong> – Pastes formatted list in Google Docs, checkboxes in GitHub/Notion.
+                  </p>
+                  <p>
+                    <strong style={{ color: 'var(--color-ink)' }}>Markdown</strong> – Detailed format with page locations for AI agents.
+                  </p>
                 </div>
               </aside>
             </div>
