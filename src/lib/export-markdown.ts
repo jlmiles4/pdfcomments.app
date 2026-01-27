@@ -201,7 +201,7 @@ export function toMarkdownChecklist(annotations: GroupedAnnotation[]): string {
 
     for (const annotation of pageAnnotations) {
       const textPreview = annotation.originalText
-        ? ` "${truncate(annotation.originalText, 50)}"`
+        ? ` "${annotation.originalText.replace(/\s+/g, ' ').trim()}"`
         : '';
       const comment = annotation.comment || annotation.linkedNotes[0] || '';
 
@@ -209,7 +209,7 @@ export function toMarkdownChecklist(annotations: GroupedAnnotation[]): string {
         `- [ ] **[${annotation.type}]**${textPreview}`
       );
       if (comment) {
-        lines.push(`  - Note: ${truncate(comment, 60)}`);
+        lines.push(`  - Note: ${comment.replace(/\s+/g, ' ').trim()}`);
       }
     }
 
@@ -330,13 +330,13 @@ export function toHtmlChecklist(annotations: GroupedAnnotation[]): string {
 
     for (const annotation of pageAnnotations) {
       const textPreview = annotation.originalText
-        ? ` "${escapeHtml(truncate(annotation.originalText, 50))}"`
+        ? ` "${escapeHtml(annotation.originalText.replace(/\s+/g, ' ').trim())}"`
         : '';
       const comment = annotation.comment || annotation.linkedNotes[0] || '';
 
       if (comment) {
         lines.push(
-          `<li><strong>[${annotation.type}]</strong>${textPreview}<ul><li>Note: ${escapeHtml(truncate(comment, 60))}</li></ul></li>`
+          `<li><strong>[${annotation.type}]</strong>${textPreview}<ul><li>Note: ${escapeHtml(comment.replace(/\s+/g, ' ').trim())}</li></ul></li>`
         );
       } else {
         lines.push(
