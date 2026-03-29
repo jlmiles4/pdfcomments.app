@@ -408,17 +408,6 @@ export function toMarkdownTableCompact(annotations: GroupedAnnotation[]): string
 }
 
 /**
- * Truncates text to a maximum length, adding ellipsis if needed.
- */
-function truncate(text: string, maxLength: number): string {
-  const cleaned = text.replace(/\s+/g, ' ').trim();
-  if (cleaned.length <= maxLength) {
-    return cleaned;
-  }
-  return cleaned.substring(0, maxLength - 3) + '...';
-}
-
-/**
  * Escapes special characters for YAML string values.
  */
 function escapeYaml(text: string): string {
