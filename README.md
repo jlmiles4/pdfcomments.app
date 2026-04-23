@@ -10,9 +10,9 @@ Extract annotations from PDFs and export to Markdown.
 
 - **Drag-and-drop** - Upload PDFs directly in the browser
 - **100% private** - Files never leave your browser, no server processing
-- **Annotation types** - Highlights, strikeouts, underlines, circles, and sticky notes
+- **Annotation types** - Highlights, strikeouts, underlines, circles, squares, sticky notes, and free-text boxes
 - **Smart grouping** - Links sticky notes to their associated markup
-- **Export formats** - Markdown tables and plain text
+- **Export formats** - Detailed Markdown (AI-ready), GFM checklist, and rich HTML for Google Docs / Word
 
 ## Quick Start
 
@@ -36,10 +36,16 @@ See [.env.example](.env.example) for configuration.
 
 ## Tech Stack
 
-- Next.js 14 (static export)
-- pdfjs-dist (client-side PDF parsing)
-- TypeScript
-- Tailwind CSS
+- Next.js 16 (static export, Turbopack)
+- pdfjs-dist 5 (client-side PDF parsing)
+- React 19
+- TypeScript 6
+- Tailwind CSS 4
+
+## Contributing
+
+- [docs/architecture.md](docs/architecture.md) — architecture, design system, project structure
+- [CLAUDE.md](CLAUDE.md) — operator manual for Claude Code sessions (commands, gotchas, conventions)
 
 ## License
 

@@ -1,3 +1,7 @@
+/**
+ * 404 page: generic not-found view with a link back to home.
+ */
+
 import Link from 'next/link';
 import { FileQuestion } from 'lucide-react';
 import { Header } from '@/components/Header';

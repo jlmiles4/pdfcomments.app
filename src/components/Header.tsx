@@ -1,3 +1,7 @@
+/**
+ * Site header: brand mark linking home and a link to the About page.
+ */
+
 'use client';
 
 import Link from 'next/link';

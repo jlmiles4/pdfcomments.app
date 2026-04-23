@@ -65,9 +65,16 @@ export async function extractAnnotations(
   for (let pageNum = 1; pageNum <= numPages; pageNum++) {
     onProgress?.(pageNum, numPages);
 
-    const page = await pdf.getPage(pageNum);
-    const pageAnnotations = await extractPageAnnotations(page, pageNum);
-    annotations.push(...pageAnnotations);
+    // Isolate per-page failures so a single corrupt page doesn't abort the
+    // whole extraction — users get partial results plus a console warning
+    // they can report, instead of a blanket "Failed to process PDF".
+    try {
+      const page = await pdf.getPage(pageNum);
+      const pageAnnotations = await extractPageAnnotations(page, pageNum);
+      annotations.push(...pageAnnotations);
+    } catch (err) {
+      console.warn(`Skipping page ${pageNum} due to extraction error:`, err);
+    }
   }
 
   return annotations;

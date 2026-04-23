@@ -69,23 +69,6 @@ export function rectsIntersect(a: Rect, b: Rect): boolean {
 }
 
 /**
- * Checks if a point is contained within a rectangle.
- *
- * @param x - X coordinate of the point
- * @param y - Y coordinate of the point
- * @param rect - Rectangle to test against
- * @returns True if point is inside the rectangle (inclusive of edges)
- */
-export function isPointInRect(x: number, y: number, rect: Rect): boolean {
-  return (
-    x >= rect.x &&
-    x <= rect.x + rect.width &&
-    y >= rect.y &&
-    y <= rect.y + rect.height
-  );
-}
-
-/**
  * Calculates the center point of a rectangle.
  *
  * @param rect - Rectangle to find center of

@@ -1,3 +1,10 @@
+/**
+ * Drag-and-drop PDF file picker with validation and large-file confirmation.
+ *
+ * Accepts a file by drop or file-dialog click, validates it's a PDF, and for
+ * files over 50MB prompts the user before handing off to `onFileSelect`.
+ */
+
 'use client';
 
 import { useCallback, useState, useRef } from 'react';
@@ -16,6 +23,10 @@ export function DropZone({ onFileSelect, compact = false }: DropZoneProps) {
   const [error, setError] = useState<string | null>(null);
   const [largeFileWarning, setLargeFileWarning] = useState<File | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Drag events bubble from child elements, so dragLeave fires when the
+  // cursor moves onto a child. A counter tracks "enters minus leaves" and
+  // only clears the dragging state when the cursor has truly left the root.
+  const dragDepth = useRef(0);
 
   const validateAndSelect = useCallback(
     (file: File, bypassWarning = false) => {
@@ -53,22 +64,30 @@ export function DropZone({ onFileSelect, compact = false }: DropZoneProps) {
     setLargeFileWarning(null);
   }, []);
 
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragDepth.current += 1;
+    setIsDragging(true);
+  }, []);
+
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(true);
   }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(false);
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setIsDragging(false);
   }, []);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      dragDepth.current = 0;
       setIsDragging(false);
 
       const file = e.dataTransfer.files[0];
@@ -79,9 +98,19 @@ export function DropZone({ onFileSelect, compact = false }: DropZoneProps) {
     [validateAndSelect]
   );
 
-  const handleClick = useCallback(() => {
+  const openFileDialog = useCallback(() => {
     inputRef.current?.click();
   }, []);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openFileDialog();
+      }
+    },
+    [openFileDialog]
+  );
 
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -96,7 +125,12 @@ export function DropZone({ onFileSelect, compact = false }: DropZoneProps) {
   return (
     <div className="w-full">
       <div
-        onClick={handleClick}
+        role="button"
+        tabIndex={0}
+        aria-label="Upload PDF: drop a file here or press Enter to browse"
+        onClick={openFileDialog}
+        onKeyDown={handleKeyDown}
+        onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -108,22 +142,26 @@ export function DropZone({ onFileSelect, compact = false }: DropZoneProps) {
           accept=".pdf,application/pdf"
           onChange={handleFileChange}
           className="hidden"
+          tabIndex={-1}
         />
 
         <div className={`flex ${compact ? 'flex-row items-center gap-4' : 'flex-col items-center gap-4 text-center'}`}>
           <div
-            className={`
-              ${compact ? 'p-3' : 'p-4'} rounded-xl transition-colors duration-200
-              ${isDragging
-                ? 'bg-blue-100 dark:bg-blue-900/40'
-                : 'bg-stone-100 dark:bg-stone-800'
-              }
-            `}
+            className={`${compact ? 'p-3' : 'p-4'} rounded-xl transition-colors duration-200`}
+            style={{
+              backgroundColor: isDragging ? 'var(--color-accent-soft)' : 'var(--color-paper-warm)',
+            }}
           >
             {isDragging ? (
-              <FileText className={`${compact ? 'w-6 h-6' : 'w-8 h-8'} text-blue-600 dark:text-blue-400`} />
+              <FileText
+                className={compact ? 'w-6 h-6' : 'w-8 h-8'}
+                style={{ color: 'var(--color-accent)' }}
+              />
             ) : (
-              <Upload className={`${compact ? 'w-6 h-6' : 'w-8 h-8'} text-stone-500 dark:text-stone-400`} />
+              <Upload
+                className={compact ? 'w-6 h-6' : 'w-8 h-8'}
+                style={{ color: 'var(--color-muted)' }}
+              />
             )}
           </div>
 
@@ -147,7 +185,11 @@ export function DropZone({ onFileSelect, compact = false }: DropZoneProps) {
       </div>
 
       {error && (
-        <div className="mt-3 flex items-center gap-2 text-red-600 dark:text-red-400 text-sm">
+        <div
+          role="alert"
+          className="mt-3 flex items-center gap-2 text-sm"
+          style={{ color: 'var(--color-strikeout)' }}
+        >
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           <span>{error}</span>
         </div>

@@ -1,3 +1,7 @@
+/**
+ * About page: product description, feature highlights, use cases, and licensing contact.
+ */
+
 'use client';
 
 import { Shield, Zap, Code } from 'lucide-react';

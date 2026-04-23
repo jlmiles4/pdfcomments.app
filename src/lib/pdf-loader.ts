@@ -1,35 +1,39 @@
 /**
  * PDF loading utilities using PDF.js.
  *
- * This module configures the PDF.js library and provides a simple interface
- * for loading PDF files from browser File objects.
+ * pdfjs-dist references browser-only globals (e.g. DOMMatrix) at module
+ * evaluation time, so we import it dynamically to keep it out of Next's
+ * static-export prerender pass.
  */
 
-import * as pdfjsLib from 'pdfjs-dist';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 
-/** Tracks whether the PDF.js worker has been initialized */
-let workerInitialized = false;
+type PdfjsModule = typeof import('pdfjs-dist');
+
+let pdfjsPromise: Promise<PdfjsModule> | null = null;
 
 /**
- * Initializes the PDF.js web worker.
- *
- * The worker handles CPU-intensive PDF parsing in a background thread.
- * Only initializes once per session.
+ * Lazily loads pdfjs-dist and configures its worker. Cached across calls.
+ * On failure, the cache is cleared so the next call can retry instead of
+ * reusing the rejected promise forever.
  */
-function initWorker(): void {
-  if (workerInitialized) return;
-
-  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
-  workerInitialized = true;
+function getPdfjs(): Promise<PdfjsModule> {
+  if (!pdfjsPromise) {
+    pdfjsPromise = import('pdfjs-dist')
+      .then(mod => {
+        mod.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+        return mod;
+      })
+      .catch(err => {
+        pdfjsPromise = null;
+        throw err;
+      });
+  }
+  return pdfjsPromise;
 }
 
 /**
  * Loads a PDF file and returns a document proxy.
- *
- * Converts the browser File object to an ArrayBuffer, then uses PDF.js
- * to parse it. The returned PDFDocumentProxy provides access to pages
- * and annotations.
  *
  * @param file - Browser File object containing the PDF
  * @returns Promise resolving to PDFDocumentProxy for accessing PDF content
@@ -42,7 +46,7 @@ function initWorker(): void {
  * ```
  */
 export async function loadPdf(file: File): Promise<PDFDocumentProxy> {
-  initWorker();
+  const pdfjsLib = await getPdfjs();
 
   const arrayBuffer = await file.arrayBuffer();
   const typedArray = new Uint8Array(arrayBuffer);

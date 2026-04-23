@@ -1,3 +1,8 @@
+/**
+ * Root layout: global SEO metadata, JSON-LD structured data, and the HTML shell.
+ * Rendered around every route in the app.
+ */
+
 import type { Metadata } from 'next';
 import './globals.css';
 
@@ -66,6 +71,8 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
+            // Escape `<` so a future value containing `</script>` can never
+            // break out of the surrounding <script> element.
             __html: JSON.stringify({
               '@context': 'https://schema.org',
               '@type': 'WebApplication',
@@ -87,7 +94,7 @@ export default function RootLayout({
                 '100% client-side processing',
                 'No data uploaded to servers',
               ],
-            }),
+            }).replace(/</g, '\\u003c'),
           }}
         />
       </head>

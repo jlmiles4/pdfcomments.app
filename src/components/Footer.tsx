@@ -1,3 +1,7 @@
+/**
+ * Site footer: copyright line and privacy link.
+ */
+
 'use client';
 
 import Link from 'next/link';

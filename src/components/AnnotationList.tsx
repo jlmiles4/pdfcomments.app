@@ -1,5 +1,8 @@
 /**
- * AnnotationList component for displaying extracted annotations.
+ * AnnotationList: renders extracted annotations as a summary grid and card list.
+ *
+ * Shows per-type counts at the top, then an ordered list of annotation cards
+ * with the marked text, reviewer comment, and any linked sticky notes.
  */
 
 'use client';
@@ -177,7 +180,10 @@ export function AnnotationList({ annotations }: AnnotationListProps) {
           All Annotations ({annotations.length})
         </h2>
         {annotations.map((annotation, idx) => (
-          <AnnotationCard key={idx} annotation={annotation} />
+          <AnnotationCard
+            key={`${annotation.page}-${annotation.type}-${annotation.rect.x}-${annotation.rect.y}-${idx}`}
+            annotation={annotation}
+          />
         ))}
       </div>
     </div>

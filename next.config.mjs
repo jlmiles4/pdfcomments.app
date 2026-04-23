@@ -2,8 +2,12 @@
 const nextConfig = {
   output: 'export',
   images: { unoptimized: true },
+  turbopack: {
+    resolveAlias: {
+      canvas: { browser: './empty-module.mjs' },
+    },
+  },
   webpack: (config) => {
-    // Disable canvas dependency for PDF.js (not needed for annotation extraction)
     config.resolve.alias.canvas = false;
     return config;
   },

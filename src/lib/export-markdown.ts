@@ -1,18 +1,18 @@
 /**
- * Markdown export utilities.
+ * Markdown and HTML export utilities.
  *
- * This module provides functions to convert extracted annotations
- * into Markdown format optimized for:
- * - Human readability
- * - AI agent processing (clear structure, location context)
- * - Task tracking and iteration workflows
+ * Converts grouped PDF annotations into formats optimized for different
+ * downstream consumers:
+ * - Markdown table: detailed, AI-agent-friendly with page locations
+ * - Markdown checklist: task-tracking format with GFM checkboxes
+ * - HTML checklist: pastes into Google Docs / Word as a formatted list
  */
 
 import type { GroupedAnnotation, AnnotationType } from '@/types';
 
 /**
- * Maps annotation types to human-readable action descriptions.
- * Helps AI agents understand what kind of change is being requested.
+ * Human-readable action descriptions per annotation type.
+ * Included in exports to help AI agents interpret reviewer intent.
  */
 const TYPE_ACTIONS: Record<AnnotationType, string> = {
   Highlight: 'Review highlighted text',
@@ -26,35 +26,56 @@ const TYPE_ACTIONS: Record<AnnotationType, string> = {
 };
 
 /**
- * Describes the vertical position on a page based on y-coordinate.
- * PDF coordinates have origin at bottom-left, so higher y = higher on page.
+ * Describes the vertical position of a rectangle on a standard letter page.
+ * PDF coordinates have origin at bottom-left (y increases upward), so a higher
+ * y value is visually higher on the page.
  */
 function describePosition(rect: { y: number; height: number }, pageHeight = 792): string {
-  // Estimate position (assuming standard letter page ~792 points)
   const centerY = rect.y + rect.height / 2;
   const relativePosition = centerY / pageHeight;
 
-  if (relativePosition > 0.66) {
-    return 'top';
-  } else if (relativePosition > 0.33) {
-    return 'middle';
-  } else {
-    return 'bottom';
-  }
+  if (relativePosition > 0.66) return 'top';
+  if (relativePosition > 0.33) return 'middle';
+  return 'bottom';
 }
 
 /**
- * Converts annotations to a detailed Markdown format optimized for AI agents.
+ * Groups annotations by page number, preserving their existing order within each page.
+ */
+function groupByPage(annotations: GroupedAnnotation[]): { page: number; items: GroupedAnnotation[] }[] {
+  const byPage: Record<number, GroupedAnnotation[]> = {};
+  for (const annotation of annotations) {
+    if (!byPage[annotation.page]) byPage[annotation.page] = [];
+    byPage[annotation.page].push(annotation);
+  }
+
+  return Object.keys(byPage)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map(page => ({ page, items: byPage[page] }));
+}
+
+/**
+ * Escapes HTML special characters so user-supplied strings render as text,
+ * not markup, when pasted into HTML-aware consumers (Google Docs, email).
+ */
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/**
+ * Converts annotations to a detailed Markdown format with page locations.
  *
- * The output includes:
- * - Clear numbering for reference
- * - Page and position information for locating annotations
- * - Separation between marked content and reviewer feedback
- * - Action hints based on annotation type
+ * Optimized for AI agent workflows: each annotation is numbered, labeled with
+ * its page/position, and paired with an action hint derived from its type.
  *
- * @param annotations - Array of grouped annotations
- * @param documentName - Optional document name for context
- * @returns Markdown string with detailed, structured format
+ * @param annotations - Grouped annotations to export
+ * @param documentName - Optional document name included in the header
+ * @returns Markdown string
  */
 export function toMarkdownTable(
   annotations: GroupedAnnotation[],
@@ -64,10 +85,7 @@ export function toMarkdownTable(
     return '# PDF Review Comments\n\nNo annotations found in this document.';
   }
 
-  const lines: string[] = [
-    '# PDF Review Comments',
-    '',
-  ];
+  const lines: string[] = ['# PDF Review Comments', ''];
 
   if (documentName) {
     lines.push(`**Document:** ${documentName}`);
@@ -75,80 +93,48 @@ export function toMarkdownTable(
   }
 
   lines.push(`**Total comments:** ${annotations.length}`);
-  lines.push('');
-  lines.push('---');
-  lines.push('');
+  lines.push('', '---', '');
 
-  // Group by page
-  const byPage: Record<number, GroupedAnnotation[]> = {};
-  for (const annotation of annotations) {
-    if (!byPage[annotation.page]) {
-      byPage[annotation.page] = [];
-    }
-    byPage[annotation.page].push(annotation);
-  }
-
-  const pages = Object.keys(byPage).map(Number).sort((a, b) => a - b);
   let itemNumber = 1;
 
-  for (const page of pages) {
-    const pageAnnotations = byPage[page];
-    lines.push(`## Page ${page}`);
-    lines.push('');
+  for (const { page, items } of groupByPage(annotations)) {
+    lines.push(`## Page ${page}`, '');
 
-    for (const annotation of pageAnnotations) {
+    for (const annotation of items) {
       const position = describePosition(annotation.rect);
       const action = TYPE_ACTIONS[annotation.type];
 
-      lines.push(`### ${itemNumber}. ${annotation.type} (${position} of page)`);
-      lines.push('');
-
-      // Location context for finding this annotation
+      lines.push(`### ${itemNumber}. ${annotation.type} (${position} of page)`, '');
       lines.push(`**Location:** Page ${page}, ${position} section`);
-      lines.push(`**Action:** ${action}`);
-      lines.push('');
+      lines.push(`**Action:** ${action}`, '');
 
-      // The marked/highlighted content (if any)
       if (annotation.originalText) {
         lines.push('**Marked text:**');
-        lines.push(`> ${annotation.originalText}`);
-        lines.push('');
+        lines.push(`> ${annotation.originalText}`, '');
       }
 
-      // Reviewer's feedback
       const hasComment = annotation.comment.length > 0;
       const hasNotes = annotation.linkedNotes.length > 0;
 
       if (hasComment || hasNotes) {
         lines.push('**Reviewer feedback:**');
-
-        if (hasComment) {
-          lines.push(`- ${annotation.comment}`);
-        }
-
+        if (hasComment) lines.push(`- ${annotation.comment}`);
         for (const note of annotation.linkedNotes) {
           lines.push(`- ${note}`);
         }
-
         lines.push('');
       }
 
-      // If no content at all, indicate it's a marker without comment
       if (!annotation.originalText && !hasComment && !hasNotes) {
-        lines.push('*No comment provided - review the marked area in the PDF*');
-        lines.push('');
+        lines.push('*No comment provided - review the marked area in the PDF*', '');
       }
 
-      lines.push('---');
-      lines.push('');
-
+      lines.push('---', '');
       itemNumber++;
     }
   }
 
-  // Summary section for quick reference
-  lines.push('## Summary by Type');
-  lines.push('');
+  lines.push('## Summary by Type', '');
 
   const typeCounts: Partial<Record<AnnotationType, number>> = {};
   for (const annotation of annotations) {
@@ -163,13 +149,13 @@ export function toMarkdownTable(
 }
 
 /**
- * Converts annotations to a concise checklist format.
+ * Converts annotations to a concise GitHub-flavored Markdown checklist.
  *
- * Uses GitHub-flavored Markdown checkboxes for task tracking.
- * Each item includes enough context to locate it in the PDF.
+ * Renders as an interactive task list in GitHub and Notion, and as a plain
+ * bulleted list elsewhere.
  *
- * @param annotations - Array of grouped annotations
- * @returns Markdown string with checkbox format
+ * @param annotations - Grouped annotations to export
+ * @returns Markdown checklist string
  */
 export function toMarkdownChecklist(annotations: GroupedAnnotation[]): string {
   if (annotations.length === 0) {
@@ -183,31 +169,16 @@ export function toMarkdownChecklist(annotations: GroupedAnnotation[]): string {
     '',
   ];
 
-  // Group by page
-  const byPage: Record<number, GroupedAnnotation[]> = {};
-  for (const annotation of annotations) {
-    if (!byPage[annotation.page]) {
-      byPage[annotation.page] = [];
-    }
-    byPage[annotation.page].push(annotation);
-  }
+  for (const { page, items } of groupByPage(annotations)) {
+    lines.push(`## Page ${page}`, '');
 
-  const pages = Object.keys(byPage).map(Number).sort((a, b) => a - b);
-
-  for (const page of pages) {
-    const pageAnnotations = byPage[page];
-    lines.push(`## Page ${page}`);
-    lines.push('');
-
-    for (const annotation of pageAnnotations) {
+    for (const annotation of items) {
       const textPreview = annotation.originalText
         ? ` "${annotation.originalText.replace(/\s+/g, ' ').trim()}"`
         : '';
       const comment = annotation.comment || annotation.linkedNotes[0] || '';
 
-      lines.push(
-        `- [ ] **[${annotation.type}]**${textPreview}`
-      );
+      lines.push(`- [ ] **[${annotation.type}]**${textPreview}`);
       if (comment) {
         lines.push(`  - Note: ${comment.replace(/\s+/g, ' ').trim()}`);
       }
@@ -220,90 +191,13 @@ export function toMarkdownChecklist(annotations: GroupedAnnotation[]): string {
 }
 
 /**
- * Converts annotations to a structured JSON-like format within Markdown.
+ * Converts annotations to HTML for rich-text paste targets.
  *
- * This format is optimized for AI agents that need to parse
- * and act on individual annotations programmatically.
+ * Produces semantic `<ul>`/`<li>` markup that renders as a formatted bullet
+ * list in Google Docs, Word, and most email clients.
  *
- * @param annotations - Array of grouped annotations
- * @returns Markdown string with structured data blocks
- */
-export function toMarkdownStructured(annotations: GroupedAnnotation[]): string {
-  if (annotations.length === 0) {
-    return '# PDF Annotations (Structured)\n\nNo annotations found.';
-  }
-
-  const lines: string[] = [
-    '# PDF Annotations (Structured Format)',
-    '',
-    'Each annotation below contains structured data for programmatic processing.',
-    '',
-    '---',
-    '',
-  ];
-
-  let itemNumber = 1;
-
-  for (const annotation of annotations) {
-    const position = describePosition(annotation.rect);
-
-    lines.push(`## Annotation ${itemNumber}`);
-    lines.push('');
-    lines.push('```yaml');
-    lines.push(`id: ${itemNumber}`);
-    lines.push(`type: ${annotation.type}`);
-    lines.push(`page: ${annotation.page}`);
-    lines.push(`position: ${position}`);
-    lines.push(`action_required: ${TYPE_ACTIONS[annotation.type]}`);
-
-    if (annotation.originalText) {
-      // Use YAML literal block for multiline text
-      if (annotation.originalText.includes('\n')) {
-        lines.push('marked_text: |');
-        for (const line of annotation.originalText.split('\n')) {
-          lines.push(`  ${line}`);
-        }
-      } else {
-        lines.push(`marked_text: "${escapeYaml(annotation.originalText)}"`);
-      }
-    } else {
-      lines.push('marked_text: null');
-    }
-
-    if (annotation.comment) {
-      lines.push(`comment: "${escapeYaml(annotation.comment)}"`);
-    } else {
-      lines.push('comment: null');
-    }
-
-    if (annotation.linkedNotes.length > 0) {
-      lines.push('linked_notes:');
-      for (const note of annotation.linkedNotes) {
-        lines.push(`  - "${escapeYaml(note)}"`);
-      }
-    } else {
-      lines.push('linked_notes: []');
-    }
-
-    lines.push('```');
-    lines.push('');
-
-    itemNumber++;
-  }
-
-  return lines.join('\n');
-}
-
-/**
- * Converts annotations to HTML checklist format for Google Docs compatibility.
- *
- * Generates semantic HTML that renders correctly when pasted into:
- * - Google Docs (formatted bullet list with bold type badges)
- * - Microsoft Word
- * - Email clients
- *
- * @param annotations - Array of grouped annotations
- * @returns HTML string with formatted list
+ * @param annotations - Grouped annotations to export
+ * @returns HTML string
  */
 export function toHtmlChecklist(annotations: GroupedAnnotation[]): string {
   if (annotations.length === 0) {
@@ -312,23 +206,11 @@ export function toHtmlChecklist(annotations: GroupedAnnotation[]): string {
 
   const lines: string[] = [];
 
-  // Group by page
-  const byPage: Record<number, GroupedAnnotation[]> = {};
-  for (const annotation of annotations) {
-    if (!byPage[annotation.page]) {
-      byPage[annotation.page] = [];
-    }
-    byPage[annotation.page].push(annotation);
-  }
-
-  const pages = Object.keys(byPage).map(Number).sort((a, b) => a - b);
-
-  for (const page of pages) {
-    const pageAnnotations = byPage[page];
+  for (const { page, items } of groupByPage(annotations)) {
     lines.push(`<h2>Page ${page}</h2>`);
     lines.push('<ul>');
 
-    for (const annotation of pageAnnotations) {
+    for (const annotation of items) {
       const textPreview = annotation.originalText
         ? ` "${escapeHtml(annotation.originalText.replace(/\s+/g, ' ').trim())}"`
         : '';
@@ -339,155 +221,11 @@ export function toHtmlChecklist(annotations: GroupedAnnotation[]): string {
           `<li><strong>[${annotation.type}]</strong>${textPreview}<ul><li>Note: ${escapeHtml(comment.replace(/\s+/g, ' ').trim())}</li></ul></li>`
         );
       } else {
-        lines.push(
-          `<li><strong>[${annotation.type}]</strong>${textPreview}</li>`
-        );
+        lines.push(`<li><strong>[${annotation.type}]</strong>${textPreview}</li>`);
       }
     }
 
     lines.push('</ul>');
-  }
-
-  return lines.join('\n');
-}
-
-/**
- * Escapes HTML special characters.
- */
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-/**
- * Legacy table format for backward compatibility.
- * Consider using toMarkdownTable() for better AI agent support.
- */
-export function toMarkdownTableCompact(annotations: GroupedAnnotation[]): string {
-  if (annotations.length === 0) {
-    return '# PDF Annotations\n\nNo annotations found.';
-  }
-
-  const lines: string[] = [
-    '# PDF Annotations',
-    '',
-    `*Extracted ${annotations.length} annotation${annotations.length === 1 ? '' : 's'}*`,
-    '',
-    '| # | Page | Location | Type | Marked Text | Feedback |',
-    '|---|------|----------|------|-------------|----------|',
-  ];
-
-  let itemNumber = 1;
-
-  for (const annotation of annotations) {
-    const page = annotation.page.toString();
-    const position = describePosition(annotation.rect);
-    const type = annotation.type;
-    const text = escapeMarkdownTable(annotation.originalText || '—');
-
-    const allComments: string[] = [];
-    if (annotation.comment) {
-      allComments.push(annotation.comment);
-    }
-    if (annotation.linkedNotes.length > 0) {
-      allComments.push(...annotation.linkedNotes);
-    }
-
-    const comment = allComments.length > 0
-      ? escapeMarkdownTable(allComments.join(' / '))
-      : '—';
-
-    lines.push(`| ${itemNumber} | ${page} | ${position} | ${type} | ${text} | ${comment} |`);
-    itemNumber++;
-  }
-
-  return lines.join('\n');
-}
-
-/**
- * Escapes special characters for YAML string values.
- */
-function escapeYaml(text: string): string {
-  return text
-    .replace(/\\/g, '\\\\')
-    .replace(/"/g, '\\"')
-    .replace(/\n/g, '\\n')
-    .replace(/\r/g, '');
-}
-
-/**
- * Escapes special Markdown characters for table cells.
- */
-function escapeMarkdownTable(text: string): string {
-  return text
-    .replace(/\|/g, '\\|')
-    .replace(/\n/g, ' ')
-    .replace(/\r/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-/**
- * Converts annotations to plain text format.
- *
- * Simple, readable format without Markdown formatting.
- * Useful for pasting into plain text editors or emails.
- *
- * @param annotations - Array of grouped annotations
- * @returns Plain text string
- */
-export function toPlainText(annotations: GroupedAnnotation[]): string {
-  if (annotations.length === 0) {
-    return 'No annotations found.';
-  }
-
-  const lines: string[] = [
-    `PDF REVIEW COMMENTS (${annotations.length} total)`,
-    '=' .repeat(40),
-    '',
-  ];
-
-  // Group by page
-  const byPage: Record<number, GroupedAnnotation[]> = {};
-  for (const annotation of annotations) {
-    if (!byPage[annotation.page]) {
-      byPage[annotation.page] = [];
-    }
-    byPage[annotation.page].push(annotation);
-  }
-
-  const pages = Object.keys(byPage).map(Number).sort((a, b) => a - b);
-  let itemNumber = 1;
-
-  for (const page of pages) {
-    const pageAnnotations = byPage[page];
-    lines.push(`PAGE ${page}`);
-    lines.push('-'.repeat(20));
-    lines.push('');
-
-    for (const annotation of pageAnnotations) {
-      const position = describePosition(annotation.rect);
-
-      lines.push(`${itemNumber}. [${annotation.type}] (${position} of page)`);
-
-      if (annotation.originalText) {
-        lines.push(`   Text: "${annotation.originalText}"`);
-      }
-
-      if (annotation.comment) {
-        lines.push(`   Comment: ${annotation.comment}`);
-      }
-
-      for (const note of annotation.linkedNotes) {
-        lines.push(`   Note: ${note}`);
-      }
-
-      lines.push('');
-      itemNumber++;
-    }
   }
 
   return lines.join('\n');

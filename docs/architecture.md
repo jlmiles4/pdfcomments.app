@@ -4,11 +4,12 @@ Internal documentation for [pdfcomments.app](https://pdfcomments.app).
 
 ## Tech Stack
 
-- **Framework**: Next.js 14 with App Router
+- **Framework**: Next.js 16 with App Router (Turbopack)
 - **Deployment**: Static export (`output: 'export'`) to S3/CloudFront
-- **PDF Processing**: `pdfjs-dist` (client-side only)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS with CSS custom properties
+- **PDF Processing**: `pdfjs-dist` 5.x, dynamically imported (client-side only)
+- **Language**: TypeScript 6
+- **UI**: React 19
+- **Styling**: Tailwind CSS 4 with CSS custom properties
 - **Typography**: IBM Plex Sans / IBM Plex Mono (Google Fonts)
 - **Icons**: Lucide React
 
@@ -16,33 +17,40 @@ Internal documentation for [pdfcomments.app](https://pdfcomments.app).
 
 - **Drag-and-drop PDF upload** - Client-side file handling, entirely in-browser
 - **100% private** - Files never leave the browser, no server processing
-- **Annotation extraction** - Highlights, strikethroughs, underlines, circles, and sticky notes
+- **Annotation extraction** - Highlights, strikethroughs, underlines, circles, squares, sticky notes, free-text notes
 - **Text detection** - Geometry-based intersection to find text under annotations
 - **Proximity grouping** - Links nearby sticky notes to their associated markup
-- **Dual export formats** - Markdown tables and plain text
-- **AI-ready output** - Includes page locations for AI agent workflows
+- **Three export formats** - Detailed Markdown (AI-ready, with page locations), GFM checklist (task tracking), and rich HTML (for Google Docs / Word paste)
+- **AI-ready output** - Page locations and action hints included in the detailed Markdown format
 
 ## Project Structure
 
 ```
 src/
 ├── app/
-│   ├── layout.tsx          # Root layout with SEO meta tags
-│   ├── page.tsx            # Main upload/results UI
+│   ├── layout.tsx          # Root layout with SEO meta tags and JSON-LD
+│   ├── page.tsx            # Home-page state orchestrator (upload/processing/results/error)
 │   ├── about/page.tsx      # About page with licensing info
 │   ├── privacy/page.tsx    # Privacy policy
+│   ├── not-found.tsx       # 404 page
 │   └── globals.css         # Design system with CSS variables
 ├── components/
 │   ├── Header.tsx          # Shared site header with navigation
 │   ├── Footer.tsx          # Shared footer with copyright and links
 │   ├── DropZone.tsx        # Drag-and-drop file upload UI
-│   └── AnnotationList.tsx  # Extracted annotations display
+│   ├── AnnotationList.tsx  # Extracted annotations display
+│   └── states/             # Home-page state views
+│       ├── UploadState.tsx      # Landing view with dropzone
+│       ├── ProcessingState.tsx  # Progress bar while parsing
+│       ├── ErrorState.tsx       # Failure view with retry
+│       ├── ResultsState.tsx     # Annotation list + sidebar
+│       └── ExportSidebar.tsx    # Copy/download actions
 ├── lib/
-│   ├── pdf-loader.ts       # PDF.js document loading
+│   ├── pdf-loader.ts       # PDF.js dynamic loader (browser-only)
 │   ├── extract-annotations.ts   # Core extraction logic
 │   ├── geometry.ts         # QuadPoint intersection math
 │   ├── group-annotations.ts     # Proximity grouping
-│   └── export-markdown.ts       # Markdown/plain text formatters
+│   └── export-markdown.ts       # Markdown / HTML / checklist formatters
 └── types/
     └── index.ts            # Shared type definitions
 public/
@@ -142,6 +150,10 @@ pnpm deploy:s3
 3. Set error document: `404.html`
 4. Add public read bucket policy
 5. Configure CloudFront for HTTPS (required for .app domain)
+
+## For Contributors
+
+Working on this repo with Claude Code? See [../CLAUDE.md](../CLAUDE.md) for the operator manual — non-obvious constraints (pdfjs dynamic-import requirement, canvas-alias gotcha, worker-copy steps), code conventions, and the add-a-new-annotation-type checklist live there.
 
 ## Contact
 
