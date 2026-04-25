@@ -4,7 +4,7 @@ Extract annotations from PDFs and export to Markdown.
 
 **[Try it live →](https://pdfcomments.app)**
 
-![PDF Comments Screenshot](docs/screenshot.png)
+![PDF Comments Screenshot](docs/assets/screenshot.png)
 
 ## Features
 
@@ -44,7 +44,7 @@ See [.env.example](.env.example) for configuration.
 
 ## Contributing
 
-- [docs/architecture.md](docs/architecture.md) — architecture, design system, project structure
+- [docs/](docs/README.md) — architecture, extraction pipeline, design system, deploy runbook, and the add-a-new-annotation-type guide
 - [CLAUDE.md](CLAUDE.md) — operator manual for Claude Code sessions (commands, gotchas, conventions)
 
 ## License

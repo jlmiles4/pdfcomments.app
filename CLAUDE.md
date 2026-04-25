@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Operator manual for Claude Code sessions in this repo. Human-facing architecture docs are in @docs/architecture.md — don't duplicate them here.
+Operator manual for Claude Code sessions in this repo. Human-facing architecture docs are in @docs/README.md — don't duplicate them here.
 
 ## What this project is
 
