@@ -50,7 +50,7 @@ Anything else falls through and is silently skipped.
 1. Pulls `page.getTextContent()` once per page (text items have a `transform` matrix and width).
 2. Treats each text item as a rect at `(transform[4], transform[5])` with height `Math.abs(transform[0]) || 12`.
 3. Calls [`rectsIntersect`](../../src/lib/geometry.ts) (separating-axis check) against each annotation rect.
-4. Sorts matches by their original document order so the extracted text reads naturally.
+4. Collects matches in iteration order — `getTextContent` already returns items in document order, so the extracted text reads naturally.
 5. Joins items with single spaces, avoiding double-spacing when an item already ends with whitespace.
 
 Text recovery is geometry-based, not based on PDF.js's structure tree, so it works on PDFs that lack tagged content.
