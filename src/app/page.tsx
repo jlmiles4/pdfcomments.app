@@ -53,7 +53,12 @@ export default function Home() {
     } finally {
       // Release pdfjs worker resources; the grouped annotations we kept
       // are plain data and no longer reference the PDF document.
-      await pdf?.destroy();
+      // Swallow destroy errors so they can't mask the original failure.
+      try {
+        await pdf?.destroy();
+      } catch (destroyErr) {
+        console.warn('Failed to destroy PDF document:', destroyErr);
+      }
     }
   }, []);
 

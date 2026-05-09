@@ -115,6 +115,8 @@ export function DropZone({ onFileSelect, compact = false }: DropZoneProps) {
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
+      // Reset so picking the same file twice still triggers change.
+      e.target.value = '';
       if (file) {
         validateAndSelect(file);
       }

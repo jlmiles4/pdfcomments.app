@@ -102,7 +102,7 @@ async function extractPageAnnotations(
     const subtype = annot.subtype as string;
 
     if (MARKUP_TYPES.includes(subtype)) {
-      const extracted = await extractMarkupAnnotation(
+      const extracted = extractMarkupAnnotation(
         annot,
         subtype as AnnotationType,
         pageNum,
@@ -139,12 +139,12 @@ async function extractPageAnnotations(
  * @param textItems - Text items from the page for text extraction
  * @returns Extracted annotation or null if invalid
  */
-async function extractMarkupAnnotation(
+function extractMarkupAnnotation(
   annot: Record<string, unknown>,
   type: AnnotationType,
   page: number,
   textItems: TextItem[]
-): Promise<ExtractedAnnotation | null> {
+): ExtractedAnnotation | null {
   let rect: Rect;
   let originalText = '';
 
@@ -298,9 +298,9 @@ function extractFreeTextAnnotation(
  * @returns Combined text from all intersecting items
  */
 function findTextUnderRects(textItems: TextItem[], rects: Rect[]): string {
-  const matchingItems: { item: TextItem; index: number }[] = [];
+  const matchingItems: TextItem[] = [];
 
-  textItems.forEach((item, index) => {
+  for (const item of textItems) {
     // Text transform: [scaleX, skewX, skewY, scaleY, translateX, translateY]
     const transform = item.transform;
     const x = transform[4];
@@ -312,19 +312,17 @@ function findTextUnderRects(textItems: TextItem[], rects: Rect[]): string {
 
     for (const annotRect of rects) {
       if (rectsIntersect(textRect, annotRect)) {
-        matchingItems.push({ item, index });
+        matchingItems.push(item);
         break;
       }
     }
-  });
+  }
 
-  // Sort by original document order
-  matchingItems.sort((a, b) => a.index - b.index);
-
-  // Combine text, adding spaces between separate items
+  // Combine text, adding spaces between separate items.
+  // textItems iteration order is document order, so no sort needed.
   let result = '';
   for (let i = 0; i < matchingItems.length; i++) {
-    const text = matchingItems[i].item.str;
+    const text = matchingItems[i].str;
     if (i > 0 && !result.endsWith(' ') && !text.startsWith(' ')) {
       result += ' ';
     }

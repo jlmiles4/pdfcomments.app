@@ -176,11 +176,12 @@ export function toMarkdownChecklist(annotations: GroupedAnnotation[]): string {
       const textPreview = annotation.originalText
         ? ` "${annotation.originalText.replace(/\s+/g, ' ').trim()}"`
         : '';
-      const comment = annotation.comment || annotation.linkedNotes[0] || '';
 
       lines.push(`- [ ] **[${annotation.type}]**${textPreview}`);
-      if (comment) {
-        lines.push(`  - Note: ${comment.replace(/\s+/g, ' ').trim()}`);
+
+      const notes = [annotation.comment, ...annotation.linkedNotes].filter(Boolean);
+      for (const note of notes) {
+        lines.push(`  - Note: ${note.replace(/\s+/g, ' ').trim()}`);
       }
     }
 
@@ -214,11 +215,15 @@ export function toHtmlChecklist(annotations: GroupedAnnotation[]): string {
       const textPreview = annotation.originalText
         ? ` "${escapeHtml(annotation.originalText.replace(/\s+/g, ' ').trim())}"`
         : '';
-      const comment = annotation.comment || annotation.linkedNotes[0] || '';
 
-      if (comment) {
+      const notes = [annotation.comment, ...annotation.linkedNotes].filter(Boolean);
+
+      if (notes.length > 0) {
+        const noteItems = notes
+          .map(note => `<li>Note: ${escapeHtml(note.replace(/\s+/g, ' ').trim())}</li>`)
+          .join('');
         lines.push(
-          `<li><strong>[${annotation.type}]</strong>${textPreview}<ul><li>Note: ${escapeHtml(comment.replace(/\s+/g, ' ').trim())}</li></ul></li>`
+          `<li><strong>[${annotation.type}]</strong>${textPreview}<ul>${noteItems}</ul></li>`
         );
       } else {
         lines.push(`<li><strong>[${annotation.type}]</strong>${textPreview}</li>`);
