@@ -305,7 +305,7 @@ function findTextUnderRects(textItems: TextItem[], rects: Rect[]): string {
     const transform = item.transform;
     const x = transform[4];
     const y = transform[5];
-    const height = Math.abs(transform[0]) || 12;
+    const height = item.height || Math.abs(transform[3]) || 12;
     const width = item.width;
 
     const textRect: Rect = { x, y, width, height };

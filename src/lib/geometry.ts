@@ -74,7 +74,7 @@ export function rectsIntersect(a: Rect, b: Rect): boolean {
  * @param rect - Rectangle to find center of
  * @returns Object with x and y coordinates of the center
  */
-export function rectCenter(rect: Rect): { x: number; y: number } {
+function rectCenter(rect: Rect): { x: number; y: number } {
   return {
     x: rect.x + rect.width / 2,
     y: rect.y + rect.height / 2,
