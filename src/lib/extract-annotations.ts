@@ -91,38 +91,37 @@ async function extractPageAnnotations(
   page: PDFPageProxy,
   pageNum: number
 ): Promise<ExtractedAnnotation[]> {
-  const annotations: ExtractedAnnotation[] = [];
   const rawAnnotations = await page.getAnnotations();
+  if (rawAnnotations.length === 0) return [];
 
-  // Get text content for finding text under markup annotations
-  const textContent = await page.getTextContent();
-  const textItems = textContent.items as TextItem[];
+  // Only markup annotations need the page's text content. Skip the (relatively
+  // expensive) text extraction entirely on pages with none, and precompute each
+  // text item's rect once so every markup annotation reuses it.
+  const hasMarkup = rawAnnotations.some((annot) =>
+    MARKUP_TYPES.includes(annot.subtype as string)
+  );
+  const textPieces = hasMarkup
+    ? buildTextPieces((await page.getTextContent()).items as TextItem[])
+    : [];
+
+  const pageHeight = page.getViewport({ scale: 1 }).height;
+  const annotations: ExtractedAnnotation[] = [];
 
   for (const annot of rawAnnotations) {
     const subtype = annot.subtype as string;
 
+    let extracted: ExtractedAnnotation | null = null;
     if (MARKUP_TYPES.includes(subtype)) {
-      const extracted = await extractMarkupAnnotation(
-        annot,
-        subtype as AnnotationType,
-        pageNum,
-        textItems
-      );
-      if (extracted) annotations.push(extracted);
+      extracted = extractMarkupAnnotation(annot, subtype as AnnotationType, pageNum, textPieces);
     } else if (SHAPE_TYPES.includes(subtype)) {
-      const extracted = extractShapeAnnotation(
-        annot,
-        subtype as AnnotationType,
-        pageNum
-      );
-      if (extracted) annotations.push(extracted);
+      extracted = extractShapeAnnotation(annot, subtype as AnnotationType, pageNum);
     } else if (subtype === 'Text') {
-      const extracted = extractTextAnnotation(annot, pageNum);
-      if (extracted) annotations.push(extracted);
+      extracted = extractNoteAnnotation(annot, pageNum, 'Text', { width: 24, height: 24 });
     } else if (subtype === 'FreeText') {
-      const extracted = extractFreeTextAnnotation(annot, pageNum);
-      if (extracted) annotations.push(extracted);
+      extracted = extractNoteAnnotation(annot, pageNum, 'FreeText', { width: 100, height: 20 });
     }
+
+    if (extracted) annotations.push({ ...extracted, pageHeight });
   }
 
   return annotations;
@@ -136,15 +135,15 @@ async function extractPageAnnotations(
  * @param annot - Raw annotation object from PDF.js
  * @param type - The annotation type
  * @param page - Page number
- * @param textItems - Text items from the page for text extraction
+ * @param textPieces - Precomputed per-page text pieces for intersection testing
  * @returns Extracted annotation or null if invalid
  */
-async function extractMarkupAnnotation(
+function extractMarkupAnnotation(
   annot: Record<string, unknown>,
   type: AnnotationType,
   page: number,
-  textItems: TextItem[]
-): Promise<ExtractedAnnotation | null> {
+  textPieces: TextPiece[]
+): ExtractedAnnotation | null {
   let rect: Rect;
   let originalText = '';
 
@@ -152,18 +151,12 @@ async function extractMarkupAnnotation(
   if (annot.quadPoints && Array.isArray(annot.quadPoints)) {
     const rects = quadPointsToRects(annot.quadPoints as number[]);
     rect = mergeRects(rects);
-    originalText = findTextUnderRects(textItems, rects);
-  } else if (annot.rect && Array.isArray(annot.rect)) {
-    const [x1, y1, x2, y2] = annot.rect as number[];
-    rect = {
-      x: Math.min(x1, x2),
-      y: Math.min(y1, y2),
-      width: Math.abs(x2 - x1),
-      height: Math.abs(y2 - y1),
-    };
-    originalText = findTextUnderRects(textItems, [rect]);
+    originalText = findTextUnderRects(textPieces, rects);
   } else {
-    return null;
+    const fallback = rectFromPdfRect(annot.rect);
+    if (!fallback) return null;
+    rect = fallback;
+    originalText = findTextUnderRects(textPieces, [rect]);
   }
 
   const comment = extractCommentText(annot);
@@ -174,7 +167,6 @@ async function extractMarkupAnnotation(
     comment: comment.trim(),
     page,
     rect,
-    color: extractColor(annot),
   };
 }
 
@@ -191,17 +183,8 @@ function extractShapeAnnotation(
   type: AnnotationType,
   page: number
 ): ExtractedAnnotation | null {
-  if (!annot.rect || !Array.isArray(annot.rect)) {
-    return null;
-  }
-
-  const [x1, y1, x2, y2] = annot.rect as number[];
-  const rect: Rect = {
-    x: Math.min(x1, x2),
-    y: Math.min(y1, y2),
-    width: Math.abs(x2 - x1),
-    height: Math.abs(y2 - y1),
-  };
+  const rect = rectFromPdfRect(annot.rect);
+  if (!rect) return null;
 
   const comment = extractCommentText(annot);
 
@@ -211,124 +194,100 @@ function extractShapeAnnotation(
     comment: comment.trim(),
     page,
     rect,
-    color: extractColor(annot),
   };
 }
 
 /**
- * Extracts a sticky note (Text) annotation.
+ * Extracts a note-style annotation: a sticky note (`Text`) or an inline text
+ * box (`FreeText`).
+ *
+ * Both carry their content in the comment and have no underlying marked text;
+ * they differ only in the default box size used when the annotation omits a
+ * usable rect. Dropped when the comment is empty.
  *
  * @param annot - Raw annotation object from PDF.js
  * @param page - Page number
+ * @param type - 'Text' (sticky note) or 'FreeText' (text box)
+ * @param defaults - Fallback box size when the rect is missing or zero-sized
  * @returns Extracted annotation or null if no comment
  */
-function extractTextAnnotation(
+function extractNoteAnnotation(
   annot: Record<string, unknown>,
-  page: number
+  page: number,
+  type: 'Text' | 'FreeText',
+  defaults: { width: number; height: number }
 ): ExtractedAnnotation | null {
-  const comment = extractCommentText(annot);
+  const comment = extractCommentText(annot).trim();
 
   if (!comment) return null;
 
-  let rect: Rect = { x: 0, y: 0, width: 24, height: 24 };
-  if (annot.rect && Array.isArray(annot.rect)) {
-    const [x1, y1, x2, y2] = annot.rect as number[];
-    rect = {
-      x: Math.min(x1, x2),
-      y: Math.min(y1, y2),
-      width: Math.abs(x2 - x1) || 24,
-      height: Math.abs(y2 - y1) || 24,
-    };
-  }
+  const rect = rectFromPdfRect(annot.rect, defaults) ?? {
+    x: 0,
+    y: 0,
+    width: defaults.width,
+    height: defaults.height,
+  };
 
   return {
-    type: 'Text',
+    type,
     originalText: '',
-    comment: comment.trim(),
+    comment,
     page,
     rect,
-    color: extractColor(annot),
   };
 }
 
 /**
- * Extracts a free text (text box) annotation.
- *
- * @param annot - Raw annotation object from PDF.js
- * @param page - Page number
- * @returns Extracted annotation or null if no comment
+ * A text item reduced to the geometry and string needed for intersection
+ * testing. Built once per page by {@link buildTextPieces} and reused across all
+ * markup annotations on that page.
  */
-function extractFreeTextAnnotation(
-  annot: Record<string, unknown>,
-  page: number
-): ExtractedAnnotation | null {
-  const comment = extractCommentText(annot);
-
-  if (!comment) return null;
-
-  let rect: Rect = { x: 0, y: 0, width: 100, height: 20 };
-  if (annot.rect && Array.isArray(annot.rect)) {
-    const [x1, y1, x2, y2] = annot.rect as number[];
-    rect = {
-      x: Math.min(x1, x2),
-      y: Math.min(y1, y2),
-      width: Math.abs(x2 - x1) || 100,
-      height: Math.abs(y2 - y1) || 20,
-    };
-  }
-
-  return {
-    type: 'FreeText',
-    originalText: '',
-    comment: comment.trim(),
-    page,
-    rect,
-    color: extractColor(annot),
-  };
+interface TextPiece {
+  rect: Rect;
+  str: string;
 }
 
 /**
- * Finds text that intersects with the given rectangles.
+ * Precomputes each PDF text item's bounding rect once per page, so markup
+ * annotations can be tested without rebuilding the rects on every call.
  *
- * Uses the text transform to determine position and compares with
- * annotation rectangles to find overlapping text.
- *
- * @param textItems - Array of text items from PDF.js
- * @param rects - Rectangles to check for text intersection
- * @returns Combined text from all intersecting items
+ * @param textItems - Text items from PDF.js `getTextContent()` (document order)
+ * @returns Text pieces in document order
  */
-function findTextUnderRects(textItems: TextItem[], rects: Rect[]): string {
-  const matchingItems: { item: TextItem; index: number }[] = [];
-
-  textItems.forEach((item, index) => {
+function buildTextPieces(textItems: TextItem[]): TextPiece[] {
+  return textItems.map((item) => {
     // Text transform: [scaleX, skewX, skewY, scaleY, translateX, translateY]
     const transform = item.transform;
-    const x = transform[4];
-    const y = transform[5];
     const height = item.height || Math.abs(transform[3]) || 12;
-    const width = item.width;
-
-    const textRect: Rect = { x, y, width, height };
-
-    for (const annotRect of rects) {
-      if (rectsIntersect(textRect, annotRect)) {
-        matchingItems.push({ item, index });
-        break;
-      }
-    }
+    return {
+      rect: { x: transform[4], y: transform[5], width: item.width, height },
+      str: item.str,
+    };
   });
+}
 
-  // Sort by original document order
-  matchingItems.sort((a, b) => a.index - b.index);
-
-  // Combine text, adding spaces between separate items
+/**
+ * Combines the text of every page text piece that intersects one of the given
+ * rectangles, preserving document order and inserting spaces between pieces.
+ *
+ * @param textPieces - Precomputed per-page text pieces (document order)
+ * @param rects - Rectangles to test for intersection
+ * @returns Combined text from all intersecting pieces
+ */
+function findTextUnderRects(textPieces: TextPiece[], rects: Rect[]): string {
   let result = '';
-  for (let i = 0; i < matchingItems.length; i++) {
-    const text = matchingItems[i].item.str;
-    if (i > 0 && !result.endsWith(' ') && !text.startsWith(' ')) {
+  let emitted = 0;
+
+  for (const piece of textPieces) {
+    const hit = rects.some((annotRect) => rectsIntersect(piece.rect, annotRect));
+    if (!hit) continue;
+
+    const text = piece.str;
+    if (emitted > 0 && !result.endsWith(' ') && !text.startsWith(' ')) {
       result += ' ';
     }
     result += text;
+    emitted++;
   }
 
   return result;
@@ -353,17 +312,27 @@ function extractCommentText(annot: Record<string, unknown>): string {
 }
 
 /**
- * Extracts the color from an annotation.
+ * Converts a PDF `/Rect` array (`[x1, y1, x2, y2]`, corners in any order) into a
+ * normalized {@link Rect}. When `defaults` is supplied, a zero-width or
+ * zero-height result falls back to the default dimension — used by note-style
+ * annotations whose rect is sometimes a degenerate point.
  *
- * Converts PDF color (0-1 range) to CSS rgb() format.
- *
- * @param annot - Raw annotation object
- * @returns CSS rgb() color string or undefined
+ * @param raw - The annotation's `rect` value (validated as a number array)
+ * @param defaults - Optional fallback dimensions for a degenerate rect
+ * @returns Normalized Rect, or null if `raw` is not an array
  */
-function extractColor(annot: Record<string, unknown>): string | undefined {
-  if (annot.color && Array.isArray(annot.color) && annot.color.length >= 3) {
-    const [r, g, b] = annot.color as number[];
-    return `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
-  }
-  return undefined;
+function rectFromPdfRect(
+  raw: unknown,
+  defaults?: { width: number; height: number }
+): Rect | null {
+  if (!Array.isArray(raw)) return null;
+  const [x1, y1, x2, y2] = raw as number[];
+  const width = Math.abs(x2 - x1);
+  const height = Math.abs(y2 - y1);
+  return {
+    x: Math.min(x1, x2),
+    y: Math.min(y1, y2),
+    width: defaults ? width || defaults.width : width,
+    height: defaults ? height || defaults.height : height,
+  };
 }

@@ -120,10 +120,20 @@ export function mergeRects(rects: Rect[]): Rect {
   let maxY = -Infinity;
 
   for (const rect of rects) {
+    // Skip any non-finite rect; Math.min/Math.max propagate NaN, so a single
+    // bad rect would otherwise poison the whole merged bounding box.
+    if (![rect.x, rect.y, rect.width, rect.height].every(Number.isFinite)) {
+      continue;
+    }
     minX = Math.min(minX, rect.x);
     minY = Math.min(minY, rect.y);
     maxX = Math.max(maxX, rect.x + rect.width);
     maxY = Math.max(maxY, rect.y + rect.height);
+  }
+
+  // Every rect was empty or non-finite — fall back to a zero-size rect.
+  if (!Number.isFinite(minX)) {
+    return { x: 0, y: 0, width: 0, height: 0 };
   }
 
   return {

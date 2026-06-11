@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useCallback, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { Upload, FileText, AlertCircle, Shield, AlertTriangle } from 'lucide-react';
 
 /** File size threshold (50MB) above which we show a warning */
@@ -15,10 +15,9 @@ const LARGE_FILE_THRESHOLD = 50 * 1024 * 1024;
 
 interface DropZoneProps {
   onFileSelect: (file: File) => void;
-  compact?: boolean;
 }
 
-export function DropZone({ onFileSelect, compact = false }: DropZoneProps) {
+export function DropZone({ onFileSelect }: DropZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [largeFileWarning, setLargeFileWarning] = useState<File | null>(null);
@@ -27,6 +26,22 @@ export function DropZone({ onFileSelect, compact = false }: DropZoneProps) {
   // cursor moves onto a child. A counter tracks "enters minus leaves" and
   // only clears the dragging state when the cursor has truly left the root.
   const dragDepth = useRef(0);
+
+  // A drag that ends outside the zone (dropped elsewhere, or cancelled) won't
+  // fire our dragLeave, which can leave the counter stuck above zero and the
+  // zone stuck in its "dragging" state. Reset on any window-level drop/dragend.
+  useEffect(() => {
+    const reset = () => {
+      dragDepth.current = 0;
+      setIsDragging(false);
+    };
+    window.addEventListener('drop', reset);
+    window.addEventListener('dragend', reset);
+    return () => {
+      window.removeEventListener('drop', reset);
+      window.removeEventListener('dragend', reset);
+    };
+  }, []);
 
   const validateAndSelect = useCallback(
     (file: File, bypassWarning = false) => {
@@ -134,7 +149,7 @@ export function DropZone({ onFileSelect, compact = false }: DropZoneProps) {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`dropzone ${isDragging ? 'dragging' : ''} ${compact ? 'p-6' : 'p-10'}`}
+        className={`dropzone ${isDragging ? 'dragging' : ''} p-10`}
       >
         <input
           ref={inputRef}
@@ -145,41 +160,37 @@ export function DropZone({ onFileSelect, compact = false }: DropZoneProps) {
           tabIndex={-1}
         />
 
-        <div className={`flex ${compact ? 'flex-row items-center gap-4' : 'flex-col items-center gap-4 text-center'}`}>
+        <div className="flex flex-col items-center gap-4 text-center">
           <div
-            className={`${compact ? 'p-3' : 'p-4'} rounded-xl transition-colors duration-200`}
+            className="p-4 rounded-xl transition-colors duration-200"
             style={{
               backgroundColor: isDragging ? 'var(--color-accent-soft)' : 'var(--color-paper-warm)',
             }}
           >
             {isDragging ? (
               <FileText
-                className={compact ? 'w-6 h-6' : 'w-8 h-8'}
+                className="w-8 h-8"
                 style={{ color: 'var(--color-accent)' }}
               />
             ) : (
               <Upload
-                className={compact ? 'w-6 h-6' : 'w-8 h-8'}
+                className="w-8 h-8"
                 style={{ color: 'var(--color-muted)' }}
               />
             )}
           </div>
 
-          <div className={compact ? '' : ''}>
-            <p className={`${compact ? 'text-base' : 'text-lg'} font-semibold`} style={{ color: 'var(--color-ink)' }}>
+          <div>
+            <p className="text-lg font-semibold" style={{ color: 'var(--color-ink)' }}>
               {isDragging ? 'Drop your PDF here' : 'Drop PDF or click to browse'}
             </p>
-            {!compact && (
-              <>
-                <p className="mt-1 text-sm" style={{ color: 'var(--color-muted)' }}>
-                  Works with annotations from Adobe, Preview, Foxit, and more
-                </p>
-                <p className="mt-3 text-xs flex items-start justify-center gap-1.5" style={{ color: 'var(--color-muted)' }}>
-                  <Shield className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                  <span className="text-center">100% local processing. Your files never leave your browser.</span>
-                </p>
-              </>
-            )}
+            <p className="mt-1 text-sm" style={{ color: 'var(--color-muted)' }}>
+              Works with annotations from Adobe, Preview, Foxit, and more
+            </p>
+            <p className="mt-3 text-xs flex items-start justify-center gap-1.5" style={{ color: 'var(--color-muted)' }}>
+              <Shield className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+              <span className="text-center">100% local processing. Your files never leave your browser.</span>
+            </p>
           </div>
         </div>
       </div>

@@ -52,8 +52,13 @@ export default function Home() {
       setState('error');
     } finally {
       // Release pdfjs worker resources; the grouped annotations we kept
-      // are plain data and no longer reference the PDF document.
-      await pdf?.destroy();
+      // are plain data and no longer reference the PDF document. Guard the
+      // cleanup so a destroy() rejection can't mask a successful extraction.
+      try {
+        await pdf?.destroy();
+      } catch (destroyErr) {
+        console.warn('Failed to release PDF resources:', destroyErr);
+      }
     }
   }, []);
 

@@ -38,6 +38,43 @@ type CopyStatus =
 
 const FEEDBACK_DURATION_MS = 2000;
 
+/**
+ * A full-width copy-to-clipboard button that flips to a "Copied!" state.
+ */
+function CopyButton({
+  label,
+  copied,
+  onClick,
+  variant,
+  disabled,
+}: {
+  label: string;
+  copied: boolean;
+  onClick: () => void;
+  variant: 'primary' | 'secondary';
+  disabled: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`btn-${variant} w-full justify-center`}
+    >
+      {copied ? (
+        <>
+          <Check className="w-4 h-4" />
+          Copied!
+        </>
+      ) : (
+        <>
+          <Copy className="w-4 h-4" />
+          {label}
+        </>
+      )}
+    </button>
+  );
+}
+
 export function ExportSidebar({ annotations, fileName }: ExportSidebarProps) {
   const [status, setStatus] = useState<CopyStatus>({ kind: 'idle' });
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -95,8 +132,12 @@ export function ExportSidebar({ annotations, fileName }: ExportSidebarProps) {
     a.download = deriveDownloadName(fileName);
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    // Defer cleanup: revoking the object URL synchronously after click() can
+    // cancel the download in some browsers before it has started.
+    setTimeout(() => {
+      a.remove();
+      URL.revokeObjectURL(url);
+    }, 0);
   };
 
   const showChecklistCopied = status.kind === 'copied' && status.format === 'checklist';
@@ -109,40 +150,20 @@ export function ExportSidebar({ annotations, fileName }: ExportSidebarProps) {
           Export
         </h3>
         <div className="space-y-2">
-          <button
+          <CopyButton
+            label="Copy Checklist"
+            copied={showChecklistCopied}
             onClick={handleCopyChecklist}
+            variant="primary"
             disabled={isEmpty}
-            className="btn-primary w-full justify-center"
-          >
-            {showChecklistCopied ? (
-              <>
-                <Check className="w-4 h-4" />
-                Copied!
-              </>
-            ) : (
-              <>
-                <Copy className="w-4 h-4" />
-                Copy Checklist
-              </>
-            )}
-          </button>
-          <button
+          />
+          <CopyButton
+            label="Copy Markdown"
+            copied={showMarkdownCopied}
             onClick={handleCopyMarkdown}
+            variant="secondary"
             disabled={isEmpty}
-            className="btn-secondary w-full justify-center"
-          >
-            {showMarkdownCopied ? (
-              <>
-                <Check className="w-4 h-4" />
-                Copied!
-              </>
-            ) : (
-              <>
-                <Copy className="w-4 h-4" />
-                Copy Markdown
-              </>
-            )}
-          </button>
+          />
           <button
             onClick={handleDownload}
             disabled={isEmpty}

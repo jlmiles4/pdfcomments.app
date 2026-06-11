@@ -51,8 +51,8 @@ export interface ExtractedAnnotation {
   page: number;
   /** Bounding rectangle of the annotation in PDF coordinates */
   rect: Rect;
-  /** Optional color in CSS rgb() format */
-  color?: string;
+  /** Height of the source page in PDF points, used for vertical-position labels */
+  pageHeight?: number;
 }
 
 /**

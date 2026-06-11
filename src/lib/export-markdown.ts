@@ -26,9 +26,10 @@ const TYPE_ACTIONS: Record<AnnotationType, string> = {
 };
 
 /**
- * Describes the vertical position of a rectangle on a standard letter page.
- * PDF coordinates have origin at bottom-left (y increases upward), so a higher
- * y value is visually higher on the page.
+ * Describes the vertical position of a rectangle on its page. PDF coordinates
+ * have origin at bottom-left (y increases upward), so a higher y value is
+ * visually higher on the page. `pageHeight` defaults to US-letter (792 pt) when
+ * the real page height isn't available.
  */
 function describePosition(rect: { y: number; height: number }, pageHeight = 792): string {
   const centerY = rect.y + rect.height / 2;
@@ -68,6 +69,14 @@ function escapeHtml(text: string): string {
 }
 
 /**
+ * Collapses internal whitespace runs to single spaces and trims the result.
+ * Used to flatten multi-line marked text and comments into a one-line preview.
+ */
+function normalizeWs(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+/**
  * Converts annotations to a detailed Markdown format with page locations.
  *
  * Optimized for AI agent workflows: each annotation is numbered, labeled with
@@ -101,7 +110,7 @@ export function toMarkdownTable(
     lines.push(`## Page ${page}`, '');
 
     for (const annotation of items) {
-      const position = describePosition(annotation.rect);
+      const position = describePosition(annotation.rect, annotation.pageHeight);
       const action = TYPE_ACTIONS[annotation.type];
 
       lines.push(`### ${itemNumber}. ${annotation.type} (${position} of page)`, '');
@@ -110,7 +119,12 @@ export function toMarkdownTable(
 
       if (annotation.originalText) {
         lines.push('**Marked text:**');
-        lines.push(`> ${annotation.originalText}`, '');
+        // Prefix every line so multi-line marked text stays inside the blockquote.
+        const quoted = annotation.originalText
+          .split(/\r?\n/)
+          .map((line) => `> ${line}`)
+          .join('\n');
+        lines.push(quoted, '');
       }
 
       const hasComment = annotation.comment.length > 0;
@@ -118,9 +132,10 @@ export function toMarkdownTable(
 
       if (hasComment || hasNotes) {
         lines.push('**Reviewer feedback:**');
-        if (hasComment) lines.push(`- ${annotation.comment}`);
+        // Flatten each entry to one line so it can't break out of the list.
+        if (hasComment) lines.push(`- ${normalizeWs(annotation.comment)}`);
         for (const note of annotation.linkedNotes) {
-          lines.push(`- ${note}`);
+          lines.push(`- ${normalizeWs(note)}`);
         }
         lines.push('');
       }
@@ -174,13 +189,13 @@ export function toMarkdownChecklist(annotations: GroupedAnnotation[]): string {
 
     for (const annotation of items) {
       const textPreview = annotation.originalText
-        ? ` "${annotation.originalText.replace(/\s+/g, ' ').trim()}"`
+        ? ` "${normalizeWs(annotation.originalText)}"`
         : '';
-      const comment = annotation.comment || annotation.linkedNotes[0] || '';
+      const feedback = [annotation.comment, ...annotation.linkedNotes].filter(Boolean);
 
       lines.push(`- [ ] **[${annotation.type}]**${textPreview}`);
-      if (comment) {
-        lines.push(`  - Note: ${comment.replace(/\s+/g, ' ').trim()}`);
+      for (const note of feedback) {
+        lines.push(`  - Note: ${normalizeWs(note)}`);
       }
     }
 
@@ -212,13 +227,16 @@ export function toHtmlChecklist(annotations: GroupedAnnotation[]): string {
 
     for (const annotation of items) {
       const textPreview = annotation.originalText
-        ? ` "${escapeHtml(annotation.originalText.replace(/\s+/g, ' ').trim())}"`
+        ? ` "${escapeHtml(normalizeWs(annotation.originalText))}"`
         : '';
-      const comment = annotation.comment || annotation.linkedNotes[0] || '';
+      const feedback = [annotation.comment, ...annotation.linkedNotes].filter(Boolean);
 
-      if (comment) {
+      if (feedback.length > 0) {
+        const noteItems = feedback
+          .map((note) => `<li>Note: ${escapeHtml(normalizeWs(note))}</li>`)
+          .join('');
         lines.push(
-          `<li><strong>[${annotation.type}]</strong>${textPreview}<ul><li>Note: ${escapeHtml(comment.replace(/\s+/g, ' ').trim())}</li></ul></li>`
+          `<li><strong>[${annotation.type}]</strong>${textPreview}<ul>${noteItems}</ul></li>`
         );
       } else {
         lines.push(`<li><strong>[${annotation.type}]</strong>${textPreview}</li>`);
