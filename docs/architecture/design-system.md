@@ -1,6 +1,6 @@
 # Design system
 
-Theme tokens, typography, and the conventions that keep `src/components/` consistent. The canonical values live in [src/app/globals.css](../../src/app/globals.css) — this page documents how to use them, not what they are. When the two disagree, the CSS wins.
+Theme tokens, typography, and the conventions that keep `src/components/` consistent. The canonical values live in the CSS: [src/app/globals.css](../../src/app/globals.css) is an import-only index over partials in [src/app/styles/](../../src/app/styles/) — `theme.css` (`@theme` tokens), `base.css` (`:root`/`.dark` vars + element styling), `components.css` (button/badge/dropzone classes), `animations.css`, and `utilities.css`. This page documents how to use them, not what they are. When the two disagree, the CSS wins.
 
 ## Color tokens
 
@@ -10,7 +10,7 @@ All theme colors are CSS custom properties on `:root` (and overridden under `.da
 - **Brand**: `--color-accent`, `--color-accent-soft`, `--color-accent-hover` (terracotta).
 - **Per-annotation pairs**: `--color-<type>` and `--color-<type>-bg` for `highlight`, `strikeout`, `underline`, `circle`, `square`, `note`. The non-`-bg` token is the foreground/icon tint; the `-bg` token is the soft chip background.
 
-Dark mode is gated on a `.dark` class via the `@custom-variant dark` declaration in `globals.css`. The `.dark` class isn't toggled anywhere in the app today — the variant exists so colors are ready when a toggle is added.
+Dark mode is gated on a `.dark` class via the `@custom-variant dark` declaration in `styles/theme.css`. The `.dark` class isn't toggled anywhere in the app today — the variant exists so colors are ready when a toggle is added.
 
 ## Using colors in components
 
@@ -28,7 +28,7 @@ Dark mode is gated on a `.dark` class via the `@custom-variant dark` declaration
 
 Tailwind utilities are fine — and preferred — for layout, spacing, sizing, flex/grid, and typography. Just keep colors out of the className.
 
-The per-annotation color pairs are used by `.badge-<type>` classes (defined in `globals.css`) and consumed via the `TYPE_CONFIG` map in [AnnotationList.tsx](../../src/components/AnnotationList.tsx). When you add a new annotation type, both ends need new entries — see [Add a new annotation type](../guides/add-annotation-type.md).
+The per-annotation color pairs are used by `.badge-<type>` classes (defined in `styles/components.css`) and consumed via the `TYPE_CONFIG` map in [AnnotationList.tsx](../../src/components/AnnotationList.tsx). When you add a new annotation type, both ends need new entries — see [Add a new annotation type](../guides/add-annotation-type.md).
 
 ## Typography
 
@@ -65,7 +65,7 @@ When you add a new home-page view, drop it under `components/states/` and wire i
 
 ### Utility classes that exist
 
-These are defined in `globals.css` and worth knowing before you reinvent them:
+These are defined in `styles/components.css` and worth knowing before you reinvent them:
 
 - `.card` — rounded container with subtle border on a warm background.
 - `.btn-primary` / `.btn-secondary` — terracotta accent and outlined button.

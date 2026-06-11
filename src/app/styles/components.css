@@ -1,0 +1,139 @@
+/**
+ * Component classes: buttons, card, annotation badges, the dropzone, and the
+ * screen-reader-only helper. Badge classes pair with the `AnnotationType` set —
+ * add a `.badge-<type>` here when adding a new annotation type.
+ */
+@layer components {
+  /* Primary button */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5
+           font-medium rounded-lg text-sm;
+    background-color: var(--color-accent);
+    color: white;
+    transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  }
+
+  .btn-primary:hover {
+    background-color: var(--color-accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(196, 93, 53, 0.25);
+  }
+
+  .btn-primary:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  }
+
+  .btn-primary:disabled {
+    @apply opacity-50 cursor-not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* Secondary button */
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2
+           font-medium rounded-lg text-sm;
+    background-color: transparent;
+    color: var(--color-ink);
+    border: 1.5px solid var(--color-border-strong);
+    transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .btn-secondary:hover {
+    background-color: var(--color-paper-warm);
+    border-color: var(--color-ink-light);
+  }
+
+  /* Card */
+  .card {
+    @apply rounded-lg;
+    background-color: var(--color-paper);
+    border: 1px solid var(--color-border);
+  }
+
+  /* Badges */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium;
+  }
+
+  .badge-highlight {
+    background-color: var(--color-highlight-bg);
+    color: #8a6d10;
+    border: 1px solid var(--color-highlight);
+  }
+  .dark .badge-highlight { color: var(--color-highlight); }
+
+  .badge-strikeout {
+    background-color: var(--color-strikeout-bg);
+    color: #9c4a44;
+    border: 1px solid var(--color-strikeout);
+  }
+  .dark .badge-strikeout { color: var(--color-strikeout); }
+
+  .badge-underline {
+    background-color: var(--color-underline-bg);
+    color: #3d6a94;
+    border: 1px solid var(--color-underline);
+  }
+  .dark .badge-underline { color: var(--color-underline); }
+
+  .badge-circle {
+    background-color: var(--color-circle-bg);
+    color: #6b5094;
+    border: 1px solid var(--color-circle);
+  }
+  .dark .badge-circle { color: var(--color-circle); }
+
+  .badge-square {
+    background-color: var(--color-square-bg);
+    color: #3d7a58;
+    border: 1px solid var(--color-square);
+  }
+  .dark .badge-square { color: var(--color-square); }
+
+  .badge-text, .badge-freetext {
+    background-color: var(--color-note-bg);
+    color: #9a6d24;
+    border: 1px solid var(--color-note);
+  }
+  .dark .badge-text, .dark .badge-freetext { color: var(--color-note); }
+
+  .badge-ink {
+    background-color: var(--color-paper-warm);
+    color: var(--color-ink-light);
+    border: 1px solid var(--color-border-strong);
+  }
+
+  /* Drop zone */
+  .dropzone {
+    @apply relative rounded-lg p-10 text-center cursor-pointer;
+    border: 2px dashed var(--color-border-strong);
+    background-color: var(--color-paper-warm);
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+  }
+
+  .dropzone:hover {
+    border-color: var(--color-accent);
+  }
+
+  .dropzone.dragging {
+    border-color: var(--color-accent);
+    border-style: solid;
+    background-color: var(--color-accent-soft);
+  }
+
+  /* Visually hidden but still announced by screen readers */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}

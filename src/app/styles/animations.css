@@ -1,0 +1,15 @@
+/**
+ * Keyframes. `fadeIn` backs the `animate-fade-in` utility generated from the
+ * `--animate-fade-in` token in theme.css. Keyframes are global regardless of
+ * import order.
+ */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

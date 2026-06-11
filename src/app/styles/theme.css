@@ -1,0 +1,29 @@
+/**
+ * Tailwind v4 `@theme` tokens. These generate utilities at build time:
+ * the `--color-*` entries produce `bg-highlight`, `text-note`, etc., and
+ * `--animate-fade-in` produces the `.animate-fade-in` class.
+ *
+ * Runtime-themeable values (light/dark) live in base.css under `:root` / `.dark`.
+ * The animation timing here intentionally matches the original `.animate-fade-in`
+ * rule (cubic-bezier + forwards), so the generated utility is behavior-identical.
+ */
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+
+  --animate-fade-in: fadeIn 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+
+  --color-highlight: #f5d87a;
+  --color-highlight-bg: #fef9e7;
+  --color-strikeout: #d4726a;
+  --color-strikeout-bg: #fbeeed;
+  --color-underline: #5a8fc4;
+  --color-underline-bg: #edf4fa;
+  --color-circle: #9b7dc4;
+  --color-circle-bg: #f4f0fa;
+  --color-square: #5dab80;
+  --color-square-bg: #eef7f2;
+  --color-note: #e8a54b;
+  --color-note-bg: #fef6e9;
+}
+
+@custom-variant dark (&:where(.dark, .dark *));

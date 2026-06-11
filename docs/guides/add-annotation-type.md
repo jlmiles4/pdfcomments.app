@@ -86,7 +86,7 @@ Pick the icon from [lucide-react](https://lucide.dev) — keep it consistent in 
 
 ## 5. Add a badge style
 
-[src/app/globals.css](../../src/app/globals.css):
+[src/app/styles/components.css](../../src/app/styles/components.css) (a partial imported by `src/app/globals.css`):
 
 ```css
 .badge-caret {
@@ -95,7 +95,7 @@ Pick the icon from [lucide-react](https://lucide.dev) — keep it consistent in 
 }
 ```
 
-You'll also need to define `--color-caret` and `--color-caret-bg` in both the `:root` and `.dark` blocks. Pick values that fit the existing warm/muted palette — see [design-system.md](../architecture/design-system.md) for guidance on which tokens already exist.
+You'll also need to define `--color-caret` and `--color-caret-bg` in both the `:root` and `.dark` blocks of [src/app/styles/base.css](../../src/app/styles/base.css). Pick values that fit the existing warm/muted palette — see [design-system.md](../architecture/design-system.md) for guidance on which tokens already exist.
 
 ## Verify
 
