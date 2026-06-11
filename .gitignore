@@ -1,6 +1,10 @@
 # Dependencies
 node_modules/
 
+# This repo uses pnpm (see packageManager). Don't commit other package managers' lockfiles.
+package-lock.json
+yarn.lock
+
 # Build outputs
 .next/
 out/
@@ -13,10 +17,15 @@ out/
 # IDE & Editor
 .vscode/
 .idea/
-.claude/
 *.swp
 *.swo
 *~
+
+# Claude Code: commit shared skills/rules/hooks; keep local + transient ignored
+.claude/*
+!.claude/settings.json
+!.claude/skills/
+!.claude/hooks/
 
 # OS files
 .DS_Store

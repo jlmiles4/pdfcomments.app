@@ -2,7 +2,7 @@
 
 Pure TypeScript. No React. DOM access is confined to `pdf-loader.ts` (and only inside an `await import()`).
 
-See @../../CLAUDE.md for repo-wide rules. Type definitions live in @../types/index.ts.
+Repo-wide rules are in the root `CLAUDE.md` (always loaded). Type definitions live in `src/types/index.ts`.
 
 ## PDF coordinate system
 
@@ -28,13 +28,13 @@ PDF markup annotations encode geometry as `quadPoints`: 8 numbers per quad, orde
 
 Do these five things in order:
 
-1. Extend `AnnotationType` in @../types/index.ts.
+1. Extend the `AnnotationType` union in `src/types/index.ts`.
 2. Add an `extract<Type>Annotation` helper in `extract-annotations.ts` and wire it into the `subtype` switch.
 3. Add a `TYPE_ACTIONS` entry in `export-markdown.ts`.
-4. Add a `TYPE_CONFIG` entry in @../components/AnnotationList.tsx (icon, badge class, label).
-5. Add a `.badge-<type>` CSS class in @../app/globals.css.
+4. Add a `TYPE_CONFIG` entry in `src/components/AnnotationList.tsx` (icon, badge class, label), and add the type to `typeOrder` so it can surface in the summary grid.
+5. Add a `.badge-<type>` CSS class in `src/app/styles/components.css` (follow the existing `.badge-*` block), and define its `--color-*` tokens in `src/app/styles/base.css` (both `:root` and `.dark`). `src/app/globals.css` is just the import index.
 
-Skipping any one of these will either break the build or silently hide the new type from exports.
+Skipping any one of these will either break the build or silently hide the new type from exports. Full worked example (using a `Caret` type): `docs/guides/add-annotation-type.md`.
 
 ## Proximity grouping
 
@@ -50,7 +50,7 @@ Type-only imports (`import type { ... } from 'pdfjs-dist'`) are safe — they're
 
 ## Export formats
 
-Three functions in `export-markdown.ts`, all consumed by @../components/states/ExportSidebar.tsx:
+Three functions in `export-markdown.ts`, all consumed by `src/components/states/ExportSidebar.tsx`:
 
 - **`toMarkdownTable`** — detailed, page-grouped, with action hints. Powers "Copy Markdown" and "Download .md".
 - **`toMarkdownChecklist`** — GFM checkboxes. The `text/plain` half of "Copy Checklist".

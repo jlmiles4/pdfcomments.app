@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm dev:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm build:*)",
+      "Bash(pnpm exec tsc:*)",
+      "Bash(pnpm audit:*)",
+      "Bash(pnpm install:*)",
+      "Bash(cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/)"
+    ],
+    "ask": [
+      "Bash(pnpm send-it)",
+      "Bash(pnpm send-it:*)",
+      "Bash(pnpm deploy:s3)",
+      "Bash(pnpm deploy:s3:*)",
+      "Bash(pnpm invalidate)",
+      "Bash(pnpm invalidate:*)",
+      "Bash(aws s3 sync:*)",
+      "Bash(aws s3 rm:*)",
+      "Bash(aws cloudfront create-invalidation:*)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/build-gate.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}
