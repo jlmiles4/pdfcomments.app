@@ -2,14 +2,15 @@
   "name": "pdf-annotation-extractor",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "pnpm@10.22.0",
   "scripts": {
     "dev": "next dev",
-    "build": "next build && cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs out/",
+    "build": "next build && { cp -f node_modules/pdfjs-dist/build/pdf.worker.min.mjs out/ 2>/dev/null || echo 'note: bundled pdfjs worker not found; out/ keeps the committed public/ copy'; }",
     "start": "next start",
     "lint": "eslint src/",
     "postinstall": "cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/",
-    "deploy:s3": "bash -c 'set -a && source .env && aws s3 sync out/ \"s3://$S3_BUCKET\" --delete'",
-    "invalidate": "bash -c 'set -a && source .env && aws cloudfront create-invalidation --distribution-id \"$CLOUDFRONT_DISTRIBUTION_ID\" --paths \"/*\"'",
+    "deploy:s3": "bash -c 'set -aeuo pipefail && source .env && : \"${S3_BUCKET:?set S3_BUCKET in .env}\" && [ -f out/index.html ] && aws s3 sync out/ \"s3://$S3_BUCKET\" --delete'",
+    "invalidate": "bash -c 'set -aeuo pipefail && source .env && : \"${CLOUDFRONT_DISTRIBUTION_ID:?set CLOUDFRONT_DISTRIBUTION_ID in .env}\" && aws cloudfront create-invalidation --distribution-id \"$CLOUDFRONT_DISTRIBUTION_ID\" --paths \"/*\"'",
     "send-it": "pnpm build && pnpm deploy:s3 && pnpm invalidate"
   },
   "dependencies": {
@@ -34,7 +35,8 @@
   },
   "pnpm": {
     "overrides": {
-      "postcss": "^8.5.10"
+      "postcss": "^8.5.10",
+      "brace-expansion@5": "^5.0.6"
     }
   }
 }
